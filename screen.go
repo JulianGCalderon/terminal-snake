@@ -2,26 +2,15 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os"
 )
 
 const esc = "\x1b"
 
-type Terminal interface {
-	io.Writer
-	// size() (int, int)
-}
-
-func NewTerminal(terminal *os.File) Terminal {
-	return terminal
-}
-
 type Screen struct {
-	Terminal
+	*Terminal
 }
 
-func NewScreen(terminal Terminal) *Screen {
+func NewScreen(terminal *Terminal) *Screen {
 	return &Screen{terminal}
 }
 
@@ -38,9 +27,15 @@ func (s *Screen) ShowCursor() {
 }
 
 func (s *Screen) MoveTo(position Position) {
-	s.Printf(esc+"[%v;%vH", position.X, position.X)
+	s.Printf(esc+"[%v;%vH", position.Y, position.X)
 }
 
 func (s *Screen) Clear() {
 	s.Printf(esc + "[2J")
+}
+
+func (s *Screen) Reset() {
+	s.MoveTo(Position{0, 0})
+	s.Clear()
+	s.Flush()
 }

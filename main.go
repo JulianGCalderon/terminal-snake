@@ -1,18 +1,26 @@
 package main
 
 import (
+	"log"
 	"os"
 	"time"
 )
 
 func main() {
-	terminal := NewTerminal(os.Stdout)
+	terminal, err := NewTerminal(os.Stdout)
+	if err != nil {
+		log.Fatalf("NewTerminal: %v\n", err)
+	}
+
+	terminal.Save()
+
 	screen := NewScreen(terminal)
 
-	screen.Clear()
-	screen.HideCursor()
-	screen.MoveTo(Position{10, 10})
-	screen.Printf("¡Hola Mundo!")
+	game := NewGame(screen)
 
-	time.Sleep(5 * time.Second)
+	game.Display()
+
+	time.Sleep(1 * time.Second)
+
+	screen.Reset()
 }

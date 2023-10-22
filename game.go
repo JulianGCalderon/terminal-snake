@@ -118,8 +118,8 @@ func read(r io.Reader, ch chan byte) {
 func randomPosition(s *Screen) Position {
 	width, height := s.Size()
 	random := Position{
-		rand.Intn(height) + 1,
-		rand.Intn(width) + 1,
+		rand.Intn(height-2) + 2,
+		rand.Intn(width-2) + 2,
 	}
 	return random
 }
@@ -136,7 +136,7 @@ func (g *Game) Start() {
 
 func (g *Game) Loop() {
 
-	framerate := 30
+	framerate := 15
 	desired := time.Second / time.Duration(framerate)
 
 	timer := time.Now()
@@ -161,10 +161,6 @@ func (g *Game) Update() {
 	}
 
 	if g.snake.Head() == Position(g.food) {
-		g.snake.Grow()
-		g.snake.Grow()
-		g.snake.Grow()
-		g.snake.Grow()
 		g.snake.Grow()
 
 		g.RepositionFood()

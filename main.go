@@ -2,28 +2,20 @@ package main
 
 import (
 	"log"
-	"os"
-
-	"golang.org/x/term"
+	"termsnake/term"
 )
 
 func main() {
-	terminal, err := NewTerminal(os.Stdout)
+	terminal, err := term.New()
 	if err != nil {
-		log.Fatalf("NewTerminal: %v\n", err)
+		log.Fatalf("Could not create terminal: %v", err)
 	}
-	screen := NewScreen(terminal)
+	defer terminal.Restore()
 
-	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	game, err := NewGame(terminal)
 	if err != nil {
-		log.Fatalf("MakeRaw: %v\n", err)
+		log.Fatalf("Could not create game: %v", err)
 	}
 
-	game := NewGame(screen, os.Stdin)
 	game.Start()
-
-	err = term.Restore(int(os.Stdin.Fd()), state)
-	if err != nil {
-		log.Fatalf("Restore: %v\n", err)
-	}
 }

@@ -3,7 +3,8 @@ package main
 import (
 	"log"
 	"os"
-	"time"
+
+	"golang.org/x/term"
 )
 
 func main() {
@@ -11,16 +12,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewTerminal: %v\n", err)
 	}
-
-	terminal.Save()
-
 	screen := NewScreen(terminal)
 
-	game := NewGame(screen)
+	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		log.Fatalf("MakeRaw: %v\n", err)
+	}
 
-	game.Display()
+	game := NewGame(screen, os.Stdin)
+	game.Start()
 
-	time.Sleep(1 * time.Second)
-
-	screen.Reset()
+	err = term.Restore(int(os.Stdin.Fd()), state)
+	if err != nil {
+		log.Fatalf("Restore: %v\n", err)
+	}
 }

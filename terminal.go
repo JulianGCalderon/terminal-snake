@@ -9,14 +9,12 @@ import (
 
 type Terminal struct {
 	*bufio.Writer
-	width  int
-	height int
-	fd     int
-	state  *term.State
+	size [2]int
+	fd   int
 }
 
 func (t *Terminal) Size() (int, int) {
-	return t.width, t.height
+	return t.size[0], t.size[1]
 }
 
 func NewTerminal(raw *os.File) (terminal *Terminal, err error) {
@@ -28,21 +26,10 @@ func NewTerminal(raw *os.File) (terminal *Terminal, err error) {
 	if err != nil {
 		return
 	}
-	terminal.width = width
-	terminal.height = height
+	terminal.size[0] = width
+	terminal.size[1] = height
 
 	terminal.Writer = bufio.NewWriter(raw)
 
 	return
-}
-
-func (t *Terminal) Save() error {
-	state, err := term.GetState(int(t.fd))
-	t.state = state
-
-	return err
-}
-
-func (t *Terminal) Restore() error {
-	return term.Restore(int(t.fd), t.state)
 }

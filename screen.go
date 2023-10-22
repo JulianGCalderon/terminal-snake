@@ -18,24 +18,31 @@ func (s *Screen) Printf(format string, a ...any) {
 	fmt.Fprintf(s.Terminal, format, a...)
 }
 
-func (s *Screen) HideCursor() {
-	s.Printf(esc + "[?25l")
-}
-
-func (s *Screen) ShowCursor() {
-	s.Printf(esc + "[?25h")
-}
-
 func (s *Screen) MoveTo(position Position) {
 	s.Printf(esc+"[%v;%vH", position.Y, position.X)
 }
 
 func (s *Screen) Clear() {
 	s.Printf(esc + "[2J")
+	s.Flush()
 }
 
-func (s *Screen) Reset() {
-	s.MoveTo(Position{0, 0})
-	s.Clear()
+func (s *Screen) HideCursor() {
+	s.Printf(esc + "[?25l")
+	s.Flush()
+}
+
+func (s *Screen) ShowCursor() {
+	s.Printf(esc + "[?25h")
+	s.Flush()
+}
+
+func (s *Screen) EnableAlternativeBuffer() {
+	s.Printf(esc + "[?1049h")
+	s.Flush()
+}
+
+func (s *Screen) DisableAlternativeBuffer() {
+	s.Printf(esc + "[?1049l")
 	s.Flush()
 }

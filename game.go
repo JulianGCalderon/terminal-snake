@@ -64,12 +64,22 @@ func (g *Game) randomPosition() types.Position {
 	return types.Position{X: x, Y: y}
 }
 
+func (g *Game) bounds() types.Bounds {
+	return types.Bounds{
+		MinX: 2,
+		MaxX: g.width - 1,
+		MinY: 2,
+		MaxY: g.height - 1,
+	}
+}
+
 func (g *Game) Start() {
-	term.HideCursor(g.terminal)
-	defer term.ShowCursor(g.terminal)
 
 	term.EnableAlternativeBuffer(g.terminal)
 	defer term.DisableAlternativeBuffer(g.terminal)
+
+	term.HideCursor(g.terminal)
+	defer term.ShowCursor(g.terminal)
 
 	g.Loop()
 }
@@ -118,14 +128,16 @@ func (g *Game) spawnFood() {
 }
 
 func (g *Game) GameOver() bool {
-	return g.snake.SelfColliding()
+	return g.snake.SelfColliding() || g.snake.OffBounds(g.bounds())
 }
 
 func (g *Game) Display() {
 	term.Clear(g.terminal)
 
+	g.displayBox()
 	g.displayFood()
 	g.displaySnake()
+	g.displayScore()
 
 	g.terminal.Flush()
 }
@@ -145,26 +157,32 @@ func (g *Game) displaySnake() {
 	}
 }
 
-// func (g *Game) displayBox() {
-// 	width, height := g.screen.Size()
-// 	g.screen.MoveTo(Position{0, 0})
-// 	for i := 0; i < width; i++ {
-// 		g.screen.Printf("-")
-// 	}
-// 	g.screen.MoveTo(Position{height, 0})
-// 	for i := 0; i < width; i++ {
-// 		g.screen.Printf("-")
-// 	}
-// 	for i := 1; i <= height; i++ {
-// 		g.screen.MoveTo(Position{i, 0})
-// 		g.screen.Printf("|")
-// 		g.screen.MoveTo(Position{i, width})
-// 		g.screen.Printf("|")
-// 	}
-// }
+func (g *Game) displayBox() {
+	term.MoveTo(g.terminal, 0, 0)
 
-// func (g *Game) displayScore() {
-// 	width, _ := g.screen.Size()
-// 	g.screen.MoveTo(Position{1, width/2 - 3})
-// 	g.screen.Printf("SCORE: %v", len(g.snake.body))
-// }
+	term.Printf(g.terminal, "┌")
+	for i := 2; i <= g.width-1; i++ {
+		term.Printf(g.terminal, "─")
+	}
+	term.Printf(g.terminal, "┐")
+
+	term.MoveTo(g.terminal, 0, g.height)
+
+	term.Printf(g.terminal, "└")
+	for i := 2; i <= g.width-1; i++ {
+		term.Printf(g.terminal, "─")
+	}
+	term.Printf(g.terminal, "┘")
+
+	for i := 2; i <= g.height-1; i++ {
+		term.MoveTo(g.terminal, 0, i)
+		term.Printf(g.terminal, "│")
+		term.MoveTo(g.terminal, g.width, i)
+		term.Printf(g.terminal, "│")
+	}
+}
+
+func (g *Game) displayScore() {
+	term.MoveTo(g.terminal, g.width/2-5, 1)
+	term.Printf(g.terminal, " SCORE: %v ", g.snake.Length()-1)
+}

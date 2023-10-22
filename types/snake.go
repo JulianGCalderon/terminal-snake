@@ -19,6 +19,10 @@ func (s *Snake) Body() []Position {
 	return s.body[1:]
 }
 
+func (s *Snake) Length() int {
+	return len(s.body)
+}
+
 func (s *Snake) Direction() Direction {
 	return s.direction
 }
@@ -49,4 +53,8 @@ func (s *Snake) SelfColliding() bool {
 	}
 
 	return false
+}
+
+func (s *Snake) OffBounds(b Bounds) bool {
+	return !b.Contains(s.Head())
 }

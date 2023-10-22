@@ -60,22 +60,27 @@ func MoveTo(t Terminal, x, y int) error {
 }
 
 func Clear(t Terminal) error {
+	defer t.Flush()
 	return PrintfCode(t, "[2J")
 }
 
 func EnableAlternativeBuffer(t Terminal) error {
+	defer t.Flush()
 	return PrintfCode(t, "[?1049h")
 }
 
 func DisableAlternativeBuffer(t Terminal) error {
+	defer t.Flush()
 	return PrintfCode(t, "[?1049l")
 }
 
 func HideCursor(t Terminal) error {
+	defer t.Flush()
 	return PrintfCode(t, "[?25l")
 }
 
 func ShowCursor(t Terminal) error {
+	defer t.Flush()
 	return PrintfCode(t, "[?25h")
 }
 

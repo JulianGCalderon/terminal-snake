@@ -56,6 +56,7 @@ func New() (Terminal, error) {
 }
 
 func MoveTo(t Terminal, x, y int) error {
+	x = (x-1)*2 + 1
 	return PrintfCode(t, "[%v;%vH", y, x)
 }
 

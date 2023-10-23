@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"termsnake/types"
 	"time"
@@ -51,7 +52,7 @@ func read(r io.RuneReader, ch chan rune) {
 func (g *Game) bounds() types.Bounds {
 	return types.Bounds{
 		MinX: 1,
-		MaxX: g.width,
+		MaxX: g.width / 2,
 		MinY: 1,
 		MaxY: g.height,
 	}
@@ -60,12 +61,15 @@ func (g *Game) bounds() types.Bounds {
 func (g *Game) Start() {
 
 	term.EnableAlternativeBuffer(g.terminal)
-	defer term.DisableAlternativeBuffer(g.terminal)
 
 	term.HideCursor(g.terminal)
-	defer term.ShowCursor(g.terminal)
 
 	g.Loop()
+
+	term.DisableAlternativeBuffer(g.terminal)
+	term.ShowCursor(g.terminal)
+
+	fmt.Printf("Game Over! - Score: %v", g.score())
 }
 
 func (g *Game) Loop() {
@@ -140,47 +144,51 @@ func (g *Game) Display() {
 
 func (g *Game) displayFood() {
 	term.MoveTo(g.terminal, g.food.X, g.food.Y)
-	term.Printf(g.terminal, "*")
+	term.Printf(g.terminal, "⚪")
 }
 
 func (g *Game) displaySnake() {
 	term.MoveTo(g.terminal, g.snake.Head().X, g.snake.Head().Y)
-	term.Printf(g.terminal, "0")
+	term.Printf(g.terminal, "██")
 
 	for _, pos := range g.snake.Body() {
 		term.MoveTo(g.terminal, pos.X, pos.Y)
-		term.Printf(g.terminal, "O")
+		term.Printf(g.terminal, "▒▒")
 	}
 }
 
 func (g *Game) displayBounds() {
 	bounds := g.bounds()
 
-	term.MoveTo(g.terminal, bounds.MinX, bounds.MinX)
+	term.MoveTo(g.terminal, bounds.MinX, bounds.MinY)
 
-	term.Printf(g.terminal, "┌")
+	term.Printf(g.terminal, "┌─")
 	for i := 0; i < bounds.Width(); i++ {
-		term.Printf(g.terminal, "─")
+		term.Printf(g.terminal, "──")
 	}
-	term.Printf(g.terminal, "┐")
+	term.Printf(g.terminal, "─┐")
 
-	term.MoveTo(g.terminal, 0, g.height)
+	term.MoveTo(g.terminal, bounds.MinX, bounds.MaxY)
 
-	term.Printf(g.terminal, "└")
+	term.Printf(g.terminal, "└─")
 	for i := 0; i < bounds.Width(); i++ {
-		term.Printf(g.terminal, "─")
+		term.Printf(g.terminal, "──")
 	}
-	term.Printf(g.terminal, "┘")
+	term.Printf(g.terminal, "─┘")
 
 	for i := 0; i < bounds.Height(); i++ {
-		term.MoveTo(g.terminal, 0, i+2)
+		term.MoveTo(g.terminal, 1, i+2)
 		term.Printf(g.terminal, "│")
 		term.MoveTo(g.terminal, bounds.MaxX, i+2)
-		term.Printf(g.terminal, "│")
+		term.Printf(g.terminal, " │")
 	}
 }
 
 func (g *Game) displayScore() {
-	term.MoveTo(g.terminal, g.width/2-5, 1)
-	term.Printf(g.terminal, " SCORE: %v ", g.snake.Length()-1)
+	term.MoveTo(g.terminal, g.bounds().Middle().X, 1)
+	term.Printf(g.terminal, " SCORE: %v ", g.score())
+}
+
+func (g *Game) score() int {
+	return g.snake.Length() - 1
 }

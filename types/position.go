@@ -18,5 +18,7 @@ func (p *Position) Advance(direction Direction) {
 		p.Y--
 	case Down:
 		p.Y++
+	default:
+		panic("invalid direction")
 	}
 }

@@ -41,5 +41,5 @@ func (d Direction) Opposite() Direction {
 		return Left
 	}
 
-	return d
+	panic("invalid direction")
 }

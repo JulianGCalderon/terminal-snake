@@ -1,266 +1,194 @@
 package main
 
 import (
+	"fmt"
 	"io"
-	"math/rand"
+	"termsnake/types"
 	"time"
+
+	"termsnake/term"
 )
 
-type Position struct {
-	Y, X int
-}
-
-type Snake struct {
-	direction Direction
-	body      []Position
-}
-
-type Food Position
-
-type Direction int8
-
-const (
-	Right Direction = iota
-	Down
-	Up
-	Left
-)
-
-func NewSnake(position Position) *Snake {
-	return &Snake{
-		body: []Position{position},
-	}
-}
-
-func (s *Snake) Head() Position {
-	return s.body[0]
-}
-
-func (s *Snake) Advance() {
-	for i := len(s.body) - 1; i > 0; i-- {
-		s.body[i] = s.body[i-1]
-	}
-
-	s.body[0].AdvanceInDirection(s.direction)
-}
-
-func (s *Snake) Grow() {
-	s.body = append(s.body, Position{})
-}
-
-func (s *Snake) Colliding() bool {
-	head := s.Head()
-
-	for _, pos := range s.body[1:] {
-		if head == pos {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (p *Position) AdvanceInDirection(direction Direction) {
-	switch direction {
-	case Right:
-		p.X++
-	case Left:
-		p.X--
-	case Up:
-		p.Y--
-	case Down:
-		p.Y++
-	}
-}
+const FrameRate = 15
 
 type Game struct {
-	screen *Screen
-	input  chan byte
-	snake  Snake
-	food   Food
+	terminal      term.Terminal
+	input         chan rune
+	width, height int
+	snake         types.Snake
+	food          types.Food
 }
 
-func NewGame(s *Screen, r io.Reader) *Game {
+func NewGame(t term.Terminal) (game *Game, err error) {
+	game = &Game{terminal: t}
 
-	width, height := s.Size()
-
-	initial := Position{
-		height/2 + 1,
-		width/2 + 1,
-	}
-	random := randomPosition(s)
-
-	input := make(chan byte)
-	go read(r, input)
-
-	game := &Game{
-		screen: s,
-		input:  input,
-		snake:  *NewSnake(initial),
-		food:   Food(random),
+	err = game.updateSize()
+	if err != nil {
+		return
 	}
 
-	return game
+	initial := game.bounds().Middle()
+	game.snake = types.NewSnake(initial)
+
+	game.SpawnFood()
+
+	game.input = make(chan rune)
+	go read(t, game.input)
+
+	return
 }
 
-func read(r io.Reader, ch chan byte) {
-	buf := make([]byte, 1)
+func read(r io.RuneReader, ch chan rune) {
 	for {
-		n, err := r.Read(buf)
-		if err != nil || n != 1 {
+		r, _, err := r.ReadRune()
+		if err != nil {
 			continue
 		}
 
-		ch <- buf[0]
+		ch <- r
 	}
 }
 
-func randomPosition(s *Screen) Position {
-	width, height := s.Size()
-	random := Position{
-		rand.Intn(height-2) + 2,
-		rand.Intn(width-2) + 2,
+func (g *Game) bounds() types.Bounds {
+	return types.Bounds{
+		MinX: 1,
+		MaxX: g.width / 2,
+		MinY: 1,
+		MaxY: g.height,
 	}
-	return random
 }
 
 func (g *Game) Start() {
-	g.screen.HideCursor()
-	defer g.screen.ShowCursor()
 
-	g.screen.EnableAlternativeBuffer()
-	defer g.screen.DisableAlternativeBuffer()
+	term.EnableAlternativeBuffer(g.terminal)
+
+	term.HideCursor(g.terminal)
 
 	g.Loop()
+
+	term.DisableAlternativeBuffer(g.terminal)
+	term.ShowCursor(g.terminal)
+
+	fmt.Printf("Game Over! - Score: %v", g.score())
 }
 
 func (g *Game) Loop() {
 
-	framerate := 15
-	desired := time.Second / time.Duration(framerate)
-
-	timer := time.Now()
+	ticker := time.NewTicker(time.Second / FrameRate)
 
 	for !g.GameOver() {
 		g.Display()
 		g.Update()
-
-		elapsed := time.Since(timer)
-		if elapsed < desired {
-			time.Sleep(desired - elapsed)
-		}
-		timer = time.Now()
+		<-ticker.C
 	}
 }
 
 func (g *Game) Update() {
+
 	select {
 	case input := <-g.input:
 		g.HandleInput(input)
 	default:
 	}
 
-	if g.snake.Head() == Position(g.food) {
-		g.snake.Grow()
+	g.updateSize()
 
-		g.RepositionFood()
+	if g.snake.Head() == g.food.Position() {
+		g.snake.Grow()
+		g.SpawnFood()
 	}
 
 	g.snake.Advance()
 }
 
-func (g *Game) HandleInput(input byte) {
-	switch input {
-	case 'w':
-		if g.snake.direction != Down {
-			g.snake.direction = Up
-		}
-	case 's':
-		if g.snake.direction != Up {
-			g.snake.direction = Down
-		}
-	case 'a':
-		if g.snake.direction != Right {
-			g.snake.direction = Left
-		}
-	case 'd':
-		if g.snake.direction != Left {
-			g.snake.direction = Right
-		}
+func (g *Game) updateSize() error {
+	width, height, err := g.terminal.Size()
+	if err != nil {
+		return err
 	}
+
+	g.width, g.height = width, height
+
+	return nil
 }
 
-func (g *Game) RepositionFood() {
-	g.food = Food(randomPosition(g.screen))
+func (g *Game) SpawnFood() {
+	g.food = types.NewFood(g.bounds().Random())
+}
+
+func (g *Game) HandleInput(input rune) {
+	direction, err := types.NewDirection(input)
+	if err != nil {
+		return
+	}
+
+	if g.snake.Direction.Opposite() != direction {
+		g.snake.Direction = direction
+	}
 }
 
 func (g *Game) GameOver() bool {
-	width, height := g.screen.Size()
-
-	head := g.snake.Head()
-
-	if head.X <= 1 || head.X >= width {
-		return true
-	}
-	if head.Y <= 1 || head.Y >= height {
-		return true
-	}
-
-	if g.snake.Colliding() {
-		return true
-	}
-
-	return false
+	return g.snake.SelfColliding() || g.snake.OffBounds(g.bounds())
 }
 
 func (g *Game) Display() {
-	g.screen.Clear()
+	term.Clear(g.terminal)
 
-	g.displayBox()
-	g.displayScore()
-	g.displaySnake()
+	g.displayBounds()
 	g.displayFood()
+	g.displaySnake()
+	g.displayScore()
 
-	g.screen.Flush()
+	g.terminal.Flush()
 }
 
 func (g *Game) displayFood() {
-	g.screen.MoveTo(Position(g.food))
-	g.screen.Printf("x")
+	term.MoveTo(g.terminal, g.food.X, g.food.Y)
+	term.Printf(g.terminal, "⚪")
 }
 
 func (g *Game) displaySnake() {
-	for i, pos := range g.snake.body {
-		g.screen.MoveTo(pos)
+	term.MoveTo(g.terminal, g.snake.Head().X, g.snake.Head().Y)
+	term.Printf(g.terminal, "██")
 
-		if i == 0 {
-			g.screen.Printf("O")
-		} else {
-			g.screen.Printf("o")
-		}
+	for _, pos := range g.snake.Body() {
+		term.MoveTo(g.terminal, pos.X, pos.Y)
+		term.Printf(g.terminal, "▒▒")
 	}
 }
 
-func (g *Game) displayBox() {
-	width, height := g.screen.Size()
-	g.screen.MoveTo(Position{0, 0})
-	for i := 0; i < width; i++ {
-		g.screen.Printf("-")
+func (g *Game) displayBounds() {
+	bounds := g.bounds()
+
+	term.MoveTo(g.terminal, bounds.MinX, bounds.MinY)
+
+	term.Printf(g.terminal, "┌─")
+	for i := 0; i < bounds.Width(); i++ {
+		term.Printf(g.terminal, "──")
 	}
-	g.screen.MoveTo(Position{height, 0})
-	for i := 0; i < width; i++ {
-		g.screen.Printf("-")
+	term.Printf(g.terminal, "─┐")
+
+	term.MoveTo(g.terminal, bounds.MinX, bounds.MaxY)
+
+	term.Printf(g.terminal, "└─")
+	for i := 0; i < bounds.Width(); i++ {
+		term.Printf(g.terminal, "──")
 	}
-	for i := 1; i <= height; i++ {
-		g.screen.MoveTo(Position{i, 0})
-		g.screen.Printf("|")
-		g.screen.MoveTo(Position{i, width})
-		g.screen.Printf("|")
+	term.Printf(g.terminal, "─┘")
+
+	for i := 0; i < bounds.Height(); i++ {
+		term.MoveTo(g.terminal, 1, i+2)
+		term.Printf(g.terminal, "│")
+		term.MoveTo(g.terminal, bounds.MaxX, i+2)
+		term.Printf(g.terminal, " │")
 	}
 }
 
 func (g *Game) displayScore() {
-	width, _ := g.screen.Size()
-	g.screen.MoveTo(Position{1, width/2 - 3})
-	g.screen.Printf("SCORE: %v", len(g.snake.body))
+	term.MoveTo(g.terminal, g.bounds().Middle().X, 1)
+	term.Printf(g.terminal, " SCORE: %v ", g.score())
+}
+
+func (g *Game) score() int {
+	return g.snake.Length() - 1
 }

@@ -9,10 +9,10 @@ import (
 	"termsnake/term"
 )
 
-const FrameRate = 15
+const FrameRate = 20
 
 type Game struct {
-	terminal      term.Terminal
+	display       Display
 	input         chan rune
 	width, height int
 	snake         types.Snake
@@ -20,7 +20,7 @@ type Game struct {
 }
 
 func NewGame(t term.Terminal) (game *Game, err error) {
-	game = &Game{terminal: t}
+	game = &Game{display: Display{t}}
 
 	err = game.updateSize()
 	if err != nil {
@@ -52,7 +52,7 @@ func read(r io.RuneReader, ch chan rune) {
 func (g *Game) bounds() types.Bounds {
 	return types.Bounds{
 		MinX: 1,
-		MaxX: g.width / 2,
+		MaxX: g.width,
 		MinY: 1,
 		MaxY: g.height,
 	}
@@ -60,14 +60,13 @@ func (g *Game) bounds() types.Bounds {
 
 func (g *Game) Start() {
 
-	term.EnableAlternativeBuffer(g.terminal)
-
-	term.HideCursor(g.terminal)
+	g.display.EnableAlternativeBuffer()
+	g.display.HideCursor()
 
 	g.Loop()
 
-	term.DisableAlternativeBuffer(g.terminal)
-	term.ShowCursor(g.terminal)
+	g.display.DisableAlternativeBuffer()
+	g.display.ShowCursor()
 
 	fmt.Printf("Game Over! - Score: %v", g.score())
 }
@@ -102,7 +101,7 @@ func (g *Game) Update() {
 }
 
 func (g *Game) updateSize() error {
-	width, height, err := g.terminal.Size()
+	width, height, err := g.display.Size()
 	if err != nil {
 		return err
 	}
@@ -132,61 +131,61 @@ func (g *Game) GameOver() bool {
 }
 
 func (g *Game) Display() {
-	term.Clear(g.terminal)
+	g.display.Clear()
 
 	g.displayBounds()
 	g.displayFood()
 	g.displaySnake()
 	g.displayScore()
 
-	g.terminal.Flush()
+	g.display.Flush()
 }
 
 func (g *Game) displayFood() {
-	term.MoveTo(g.terminal, g.food.X, g.food.Y)
-	term.Printf(g.terminal, "⚪")
+	g.display.MoveTo(g.food.X, g.food.Y)
+	g.display.Printf("⚪")
 }
 
 func (g *Game) displaySnake() {
-	term.MoveTo(g.terminal, g.snake.Head().X, g.snake.Head().Y)
-	term.Printf(g.terminal, "██")
+	g.display.MoveTo(g.snake.Head().X, g.snake.Head().Y)
+	g.display.Printf("██")
 
 	for _, pos := range g.snake.Body() {
-		term.MoveTo(g.terminal, pos.X, pos.Y)
-		term.Printf(g.terminal, "▒▒")
+		g.display.MoveTo(pos.X, pos.Y)
+		g.display.Printf("▒▒")
 	}
 }
 
 func (g *Game) displayBounds() {
 	bounds := g.bounds()
 
-	term.MoveTo(g.terminal, bounds.MinX, bounds.MinY)
+	g.display.MoveTo(bounds.MinX, bounds.MinY)
 
-	term.Printf(g.terminal, "┌─")
+	g.display.Printf(" ┌")
 	for i := 0; i < bounds.Width(); i++ {
-		term.Printf(g.terminal, "──")
+		g.display.Printf("──")
 	}
-	term.Printf(g.terminal, "─┐")
+	g.display.Printf("┐ ")
 
-	term.MoveTo(g.terminal, bounds.MinX, bounds.MaxY)
+	g.display.MoveTo(bounds.MinX, bounds.MaxY)
 
-	term.Printf(g.terminal, "└─")
+	g.display.Printf(" └")
 	for i := 0; i < bounds.Width(); i++ {
-		term.Printf(g.terminal, "──")
+		g.display.Printf("──")
 	}
-	term.Printf(g.terminal, "─┘")
+	g.display.Printf("┘ ")
 
 	for i := 0; i < bounds.Height(); i++ {
-		term.MoveTo(g.terminal, 1, i+2)
-		term.Printf(g.terminal, "│")
-		term.MoveTo(g.terminal, bounds.MaxX, i+2)
-		term.Printf(g.terminal, " │")
+		g.display.MoveTo(1, i+2)
+		g.display.Printf(" │")
+		g.display.MoveTo(bounds.MaxX, i+2)
+		g.display.Printf("│ ")
 	}
 }
 
 func (g *Game) displayScore() {
-	term.MoveTo(g.terminal, g.bounds().Middle().X, 1)
-	term.Printf(g.terminal, " SCORE: %v ", g.score())
+	g.display.MoveTo(g.bounds().Middle().X-1, 1)
+	g.display.Printf(" SCORE: %v ", g.score())
 }
 
 func (g *Game) score() int {
